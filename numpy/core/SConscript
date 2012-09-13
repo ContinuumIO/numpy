@@ -386,6 +386,8 @@ lowlevel_strided_loops_src = env.GenerateFromTemplate(
 einsum_src = env.GenerateFromTemplate(pjoin('src', 'multiarray', 'einsum.c.src'))
 umath_tests_src = env.GenerateFromTemplate(pjoin('src', 'umath',
     'umath_tests.c.src'))
+umath_linalg_src = env.GenerateFromTemplate(pjoin('src', 'umath',
+    'umath_linalg.c.src'))
 multiarray_tests_src = env.GenerateFromTemplate(pjoin('src', 'multiarray',
     'multiarray_tests.c.src'))
 scalarmathmodule_src = env.GenerateFromTemplate(
@@ -506,10 +508,16 @@ scalarmathmodule = env.DistutilsPythonExtension('scalarmath',
                                             source = scalarmathmodule_src)
 
 #------------------------
-# Build scalarmath module
+# Build umath_tests module
 #------------------------
 umath_tests = env.DistutilsPythonExtension('umath_tests',
         source=umath_tests_src)
+
+#------------------------
+# Build umath_linalg module
+#------------------------
+umath_linalg = env.DistutilsPythonExtension('umath_linalg',
+        source=umath_linalg_src)
 
 #----------------------
 # Build _dotblas module
