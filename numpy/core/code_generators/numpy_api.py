@@ -328,6 +328,10 @@ multiarray_funcs_api = {
     'PyDataMem_FREE':                       289,
     'PyDataMem_RENEW':                      290,
     'PyDataMem_SetEventHook':               291,
+    'PyArray_MapIterNew':                   292,
+    'PyArray_MapIterBind':                  293,
+    'PyArray_MapIterReset':                 294,
+    'PyArray_MapIterNext':                  295,
 }
 
 ufunc_types_api = {
