@@ -1585,6 +1585,7 @@ _convert_obj(PyObject *obj, PyArrayIterObject **iter)
 }
 
 /* Reset the map iterator to the beginning */
+/*NUMPY_API*/
 NPY_NO_EXPORT void
 PyArray_MapIterReset(PyArrayMapIterObject *mit)
 {
@@ -1632,6 +1633,7 @@ PyArray_MapIterReset(PyArrayMapIterObject *mit)
  * This function needs to update the state of the map iterator
  * and point mit->dataptr to the memory-location of the next object
  */
+/*NUMPY_API*/
 NPY_NO_EXPORT void
 PyArray_MapIterNext(PyArrayMapIterObject *mit)
 {
@@ -1694,6 +1696,7 @@ PyArray_MapIterNext(PyArrayMapIterObject *mit)
  * Let's do it at bind time and also convert all <0 values to >0 here
  * as well.
  */
+/*NUMPY_API*/
 NPY_NO_EXPORT void
 PyArray_MapIterBind(PyArrayMapIterObject *mit, PyArrayObject *arr)
 {
@@ -1853,6 +1856,7 @@ PyArray_MapIterBind(PyArrayMapIterObject *mit, PyArrayObject *arr)
 }
 
 
+/*NUMPY_API*/
 NPY_NO_EXPORT PyObject *
 PyArray_MapIterNew(PyObject *indexobj, int oned, int fancy)
 {

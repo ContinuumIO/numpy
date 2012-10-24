@@ -4498,6 +4498,138 @@ ufunc_reduceat(PyUFuncObject *ufunc, PyObject *args, PyObject *kwds)
     return PyUFunc_GenericReduction(ufunc, args, kwds, UFUNC_REDUCEAT);
 }
 
+/* Call ufunc only on selected array items and store result in first operand */
+static PyObject *
+ufunc_select(PyUFuncObject *ufunc, PyObject *args, PyObject *kwds)
+{
+    static char *kwlist[] = {"op1", "idx", "op2"};
+    PyObject *op1 = NULL;
+    PyObject *idx = NULL;
+    PyObject *op2 = NULL;
+    PyArrayObject *op1_array = NULL;
+    PyArrayObject *op2_array = NULL;
+    PyArrayMapIterObject *iter = NULL;
+    PyArrayMapIterObject *iter2 = NULL;
+    PyArray_Descr *dtypes[3];
+    int needs_api;
+    npy_intp first_item[1];
+    PyUFuncGenericFunction innerloop;
+    void *innerloopdata;
+    char *dataptr[3];
+    npy_intp count[1], stride[1];
+    int i;
+
+    PyArg_ParseTupleAndKeywords(args, kwds, "OO|O", kwlist,
+                                &op1, &idx, &op2);
+
+    if (ufunc->nin == 2 && op2 == NULL) {
+        PyErr_SetString(PyExc_ValueError,
+                        "second operand needed for ufunc");
+        return NULL;
+    }
+
+    if (!PyArray_Check(op1)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "first operand must be array");
+        return NULL;
+    }
+
+    op1_array = (PyArrayObject *)PyArray_FromAny(op1, NULL, 0, 0, 0, NULL);
+    if (op1_array == NULL) {
+        return NULL;
+    }
+
+    iter = (PyArrayMapIterObject*)PyArray_MapIterNew(idx, 0, 1);
+    if (iter == NULL) {
+        return NULL;
+    }
+
+    PyArray_MapIterBind(iter, op1_array);
+    PyArray_MapIterReset(iter);
+
+    /* If second operand is an array, create MapIter object for it */
+    if (op2 != NULL && PyArray_Check(op2)) {
+        op2_array = (PyArrayObject *)PyArray_FromAny(op2, NULL, 0, 0, 0, NULL);
+        if (op2_array == NULL) {
+            return NULL;
+        }
+
+        iter2 = (PyArrayMapIterObject*)PyArray_MapIterNew(idx, 0, 1);
+        if (iter2 == NULL) {
+
+        }
+
+        PyArray_MapIterBind(iter2, op2_array);
+        PyArray_MapIterReset(iter2);
+    }
+    /* If second operand is a scalar, create 0 dim array from it */
+    else if (op2 != NULL && PyArray_IsAnyScalar(op2)) {
+        op2_array = (PyArrayObject *)PyArray_FromAny(op2, NULL, 0, 0, 0, NULL);
+        if (op2_array == NULL) {
+            return NULL;
+        }
+
+        iter2 = NULL;
+        first_item[0] = 0;
+    }
+    else if (op2 != NULL) {
+        PyErr_SetString(PyExc_TypeError,
+                        "second operand must be "
+                        "array or scalar");
+        return NULL;
+    }
+
+    /* Create dtypes array for either one or two input operands.
+     * The output operand is set to the first input operand */
+    dtypes[0] = PyArray_DESCR(op1_array);
+    if (op2_array != NULL) {
+        dtypes[1] = PyArray_DESCR(op2_array);
+        dtypes[2] = dtypes[0];
+    }
+    else {
+        dtypes[1] = dtypes[0];
+        dtypes[2] = NULL;
+    }
+
+    if (ufunc->legacy_inner_loop_selector(ufunc, dtypes,
+        &innerloop, &innerloopdata, &needs_api) < 0) {
+        return NULL;
+    }
+
+    count[0] = 1;
+    stride[0] = 1;
+ 
+    /* Loop through all indices and call ufunc for each index */
+    i = iter->size;
+    while (i > 0)
+    {
+        /* Set up data pointers for either one or two input operands.
+         * The output data pointer points to the first operand data */
+        dataptr[0] = iter->dataptr;
+        if (iter2 != NULL) {
+            dataptr[1] = iter2->dataptr;
+            dataptr[2] = iter->dataptr;
+        }
+        else if (op2_array != NULL) {
+            dataptr[1] = PyArray_GetPtr(op2_array, first_item);
+            dataptr[2] = iter->dataptr;
+        }
+        else {
+            dataptr[1] = iter->dataptr;
+            dataptr[2] = NULL;
+        }
+
+        innerloop(dataptr, count, stride, innerloopdata);
+
+        PyArray_MapIterNext(iter);
+        if (iter2 != NULL)
+            PyArray_MapIterNext(iter2);
+        i--;
+    }
+
+    return op1;
+}
+
 
 static struct PyMethodDef ufunc_methods[] = {
     {"reduce",
@@ -4511,6 +4643,9 @@ static struct PyMethodDef ufunc_methods[] = {
         METH_VARARGS | METH_KEYWORDS, NULL },
     {"outer",
         (PyCFunction)ufunc_outer,
+        METH_VARARGS | METH_KEYWORDS, NULL},
+    {"select",
+        (PyCFunction)ufunc_select,
         METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}           /* sentinel */
 };
