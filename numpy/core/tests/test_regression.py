@@ -458,6 +458,13 @@ class TestRegression(TestCase):
         assert_equal(np.array(x,dtype=np.float32,ndmin=2).ndim,2)
         assert_equal(np.array(x,dtype=np.float64,ndmin=2).ndim,2)
 
+    def test_ndmin_order(self, level=rlevel):
+        """Issue #465 and related checks"""
+        assert_(np.array([1,2], order='C', ndmin=3).flags.c_contiguous)
+        assert_(np.array([1,2], order='F', ndmin=3).flags.f_contiguous)
+        assert_(np.array(np.ones((2,2), order='F'), ndmin=3).flags.f_contiguous)
+        assert_(np.array(np.ones((2,2), order='C'), ndmin=3).flags.c_contiguous)
+
     def test_mem_axis_minimization(self, level=rlevel):
         """Ticket #327"""
         data = np.arange(5)
@@ -497,6 +504,12 @@ class TestRegression(TestCase):
         a = np.array([[1,2],[3,4],[5,6],[7,8]])
         b = a[:,1]
         assert_equal(b.reshape(2,2,order='F'), [[2,6],[4,8]])
+
+    def test_reshape_zero_strides(self, level=rlevel):
+        """Issue #380, test reshaping of zero strided arrays"""
+        a = np.ones(1)
+        a = np.lib.stride_tricks.as_strided(a, shape=(5,), strides=(0,))
+        assert_(a.reshape(5,1).strides[0] == 0)
 
     def test_repeat_discont(self, level=rlevel):
         """Ticket #352"""
@@ -1459,6 +1472,14 @@ class TestRegression(TestCase):
             x = tp(1+2j)
             assert_equal(complex(x), 1+2j)
 
+    def test_complex_boolean_cast(self):
+        """Ticket #2218"""
+        for tp in [np.csingle, np.cdouble, np.clongdouble]:
+            x = np.array([0, 0+0.5j, 0.5+0j], dtype=tp)
+            assert_equal(x.astype(bool), np.array([0, 1, 1], dtype=bool))
+            assert_(np.any(x))
+            assert_(np.all(x[1:]))
+
     def test_uint_int_conversion(self):
         x = 2**64 - 1
         assert_equal(int(np.uint64(x)), x)
@@ -1527,6 +1548,22 @@ class TestRegression(TestCase):
         assert_(np.array(1.0).flags.f_contiguous)
         assert_(np.array(np.float32(1.0)).flags.c_contiguous)
         assert_(np.array(np.float32(1.0)).flags.f_contiguous)
+
+    def test_squeeze_contiguous(self):
+        """Similar to GitHub issue #387"""
+        a = np.zeros((1,2)).squeeze()
+        b = np.zeros((2,2,2), order='F')[:,:,::2].squeeze()
+        assert_(a.flags.c_contiguous)
+        assert_(a.flags.f_contiguous)
+        assert_(b.flags.f_contiguous)
+
+    def test_reduce_contiguous(self):
+        """GitHub issue #387"""
+        a = np.add.reduce(np.zeros((2,1,2)), (0,1))
+        b = np.add.reduce(np.zeros((2,1,2)), 1)
+        assert_(a.flags.c_contiguous)
+        assert_(a.flags.f_contiguous)
+        assert_(b.flags.c_contiguous)
 
     def test_object_array_self_reference(self):
         # Object arrays with references to themselves can cause problems

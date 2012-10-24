@@ -779,8 +779,10 @@ add_newdoc('numpy.core.multiarray', 'empty_like',
         The shape and data-type of `a` define these same attributes of the
         returned array.
     dtype : data-type, optional
+        .. versionadded:: 1.6.0
         Overrides the data type of the result.
     order : {'C', 'F', 'A', or 'K'}, optional
+        .. versionadded:: 1.6.0
         Overrides the memory layout of the result. 'C' means C-order,
         'F' means F-order, 'A' means 'F' if ``a`` is Fortran contiguous,
         'C' otherwise. 'K' means match the layout of ``a`` as closely
@@ -3220,10 +3222,13 @@ add_newdoc('numpy.core.multiarray', 'ndarray', ('copy',
         Controls the memory layout of the copy. 'C' means C-order,
         'F' means F-order, 'A' means 'F' if `a` is Fortran contiguous,
         'C' otherwise. 'K' means match the layout of `a` as closely
-        as possible.
+        as possible. (Note that this function and :func:numpy.copy are very
+        similar, but have different default values for their order=
+        arguments.)
 
     See also
     --------
+    numpy.copy
     numpy.copyto
 
     Examples
