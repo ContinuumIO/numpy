@@ -14,10 +14,12 @@ exception, so it should hopefully not get unnoticed).
 
 multiarray_global_vars = {
     'NPY_NUMUSERTYPES':             7,
+    'NPY_DEFAULT_ASSIGN_CASTING':   292,
 }
 
 multiarray_global_vars_types = {
     'NPY_NUMUSERTYPES':             'int',
+    'NPY_DEFAULT_ASSIGN_CASTING':   'NPY_CASTING',
 }
 
 multiarray_scalar_bool_values = {
@@ -328,10 +330,14 @@ multiarray_funcs_api = {
     'PyDataMem_FREE':                       289,
     'PyDataMem_RENEW':                      290,
     'PyDataMem_SetEventHook':               291,
-    'PyArray_MapIterNew':                   292,
-    'PyArray_MapIterBind':                  293,
-    'PyArray_MapIterReset':                 294,
-    'PyArray_MapIterNext':                  295,
+
+    #292 already taken
+    'PyArray_MapIterNew':                   293,
+    'PyArray_MapIterBind':                  294,
+    'PyArray_MapIterReset':                 295,
+    'PyArray_MapIterNext':                  296,
+    'PyArray_MapIterSwapAxes':              297,
+    'PyArray_MapIterArray':                 298,
 }
 
 ufunc_types_api = {

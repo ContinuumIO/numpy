@@ -12,6 +12,7 @@ from test_print import in_foreign_locale
 from numpy.core.multiarray_tests import (
         test_neighborhood_iterator, test_neighborhood_iterator_oob,
         test_pydatamem_seteventhook_start, test_pydatamem_seteventhook_end,
+        test_inplace_increment
         )
 from numpy.testing import (
         TestCase, run_module_suite, assert_, assert_raises,
@@ -1028,6 +1029,13 @@ class TestMethods(TestCase):
         assert_equal(collect_warning_types(getattr, ro_diag,
                                            "__array_struct__"), [])
 
+    def test_diagonal_memleak(self):
+        # Regression test for a bug that crept in at one point
+        a = np.zeros((100, 100))
+        assert_(sys.getrefcount(a) < 50)
+        for i in xrange(100):
+            a.diagonal()
+        assert_(sys.getrefcount(a) < 50)
 
     def test_ravel(self):
         a = np.array([[0,1],[2,3]])
@@ -2809,6 +2817,31 @@ if sys.version_info >= (2, 6):
             for s in attr:
                 assert_raises(AttributeError, delattr, a, s)
 
+def test_array_interface():
+    # Test scalar coercion within the array interface
+    class Foo(object):
+        def __init__(self, value):
+            self.value = value
+            self.iface = {'typestr' : '=f8'}
+        def __float__(self):
+            return float(self.value)
+        @property
+        def __array_interface__(self):
+            return self.iface
+    f = Foo(0.5)
+    assert_equal(np.array(f), 0.5)
+    assert_equal(np.array([f]), [0.5])
+    assert_equal(np.array([f, f]), [0.5, 0.5])
+    assert_equal(np.array(f).dtype, np.dtype('=f8'))
+    # Test various shape definitions
+    f.iface['shape'] = ()
+    assert_equal(np.array(f), 0.5)
+    f.iface['shape'] = None
+    assert_raises(TypeError, np.array, f)
+    f.iface['shape'] = (1,1)
+    assert_equal(np.array(f), [[0.5]])
+    f.iface['shape'] = (2,)
+    assert_raises(ValueError, np.array, f)
 
 def test_flat_element_deletion():
     it = np.ones(3).flat
@@ -2829,6 +2862,22 @@ class TestMemEventHook(TestCase):
         a = np.zeros(10)
         del a
         test_pydatamem_seteventhook_end()
+
+class TestMapIter(TestCase):
+    def test_mapiter(self):
+        # The actual tests are within the C code in
+        # multiarray/multiarray_tests.c.src
+
+        a = arange(12).reshape((3,4)).astype(float)
+        index = ([1,1,2,0],
+                 [0,0,2,3])
+        vals = [50,50, 30,16]
+
+        test_inplace_increment(a, index, vals)
+        assert_equal(a, [[   0. ,   1.,    2.,   19.,],
+                         [ 104.,    5.,    6.,    7.,],
+                         [   8.,    9.,   40.,   11.,]])
+
 
 
 if __name__ == "__main__":
