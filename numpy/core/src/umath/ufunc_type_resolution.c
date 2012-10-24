@@ -1230,6 +1230,18 @@ PyUFunc_DefaultLegacyInnerLoopSelector(PyUFuncObject *ufunc,
     ufunc_name = ufunc->name ? ufunc->name : "(unknown)";
 
     /*
+     * Check if any of the dtypes require Python API access.
+     * TODO: It might be nice if this flag was more granular, specified
+     *       at a per-ufunc level, since it disables multithreading.
+     */
+    for (i = 0; i < ufunc->nargs; ++i) {
+        if (PyDataType_FLAGCHK(dtypes[i], NPY_NEEDS_PYAPI)) {
+            out_needs_api = 1;
+            break;
+        }
+    }
+
+    /*
      * If there are user-loops search them first.
      * TODO: There needs to be a loop selection acceleration structure,
      *       like a hash table.
