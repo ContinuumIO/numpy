@@ -305,6 +305,8 @@ typedef struct _loop1d_info {
         void *data;
         int *arg_types;
         struct _loop1d_info *next;
+        int nargs;
+        PyArray_Descr **arg_dtypes;
 } PyUFunc_Loop1d;
 
 
