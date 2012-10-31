@@ -3674,7 +3674,7 @@ static PyArray_Descr @from@_Descr = {
     /* byteorder */
     '@endian@',
     /* flags */
-    0,
+    NPY_NEEDS_PYAPI, /* String conversions use the Python API */
     /* type_num */
     NPY_@from@,
     /* elsize */

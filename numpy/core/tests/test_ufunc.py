@@ -760,5 +760,19 @@ class TestUfunc(TestCase):
         assert_no_warnings(np.add, a, 1.1, out=a, casting="unsafe")
         assert_array_equal(a, [4, 5, 6])
 
+    def test_inplace_fancy_indexing(self):
+        a = np.array([1, 2, 3])
+        np.negative.at(a, [0, 0, 1, 2])
+        assert_equal(a, [1, -2, -3])
+
+        a = np.array([1, 2, 3])
+        np.add.at(a, [0, 1, 1, 2], 1)
+        assert_equal(a, [2, 4, 4])
+
+        a = np.array([1, 2, 3])
+        np.add.at(a, [0, 1, 2, 2], np.array([1, 2, 3]))
+        assert_equal(a, [2, 4, 9])
+
+        
 if __name__ == "__main__":
     run_module_suite()
