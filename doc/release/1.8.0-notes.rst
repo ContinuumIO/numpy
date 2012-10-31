@@ -18,6 +18,24 @@ selecting multiple fields out of an array also produces a view.
 New features
 ============
 
+In place fancy indexing for ufuncs
+----------------------------------
+The function ``at`` has been added to ufunc objects to allow in place
+ufuncs using fancy indexing with no buffering. For example, the following
+will increment the first and second items in the array, and will increment
+the third item twice:
+numpy.add.at(array, [0, 1, 2, 2], 1)
+
+umath_linalg module
+-------------------
+This module provides gufuncs for several functions that were already present
+in numpy.linalg. Thre are some extra functions thrown in.
+
+Having them as gufuncs allows broadcasting of calls, which can be useful when
+there are various problems to solve.
+
+The functions are members of a module currently at numpy.core.umath_linalg
+
 Masked-arrays
 ----------------------------
 
@@ -91,6 +109,17 @@ New function ``PyArray_RequireWriteable`` provides a consistent
 interface for checking array writeability -- any C code which works
 with arrays whose WRITEABLE flag is not known to be True a priori,
 should make sure to call this function before writing.
+
+New function ``PyUFunc_RegisterLoopForStructType`` provides a way to
+register a ufunc for a structured array. For example, a ufunc could be
+registered for an array with dtype 'u8,u8,u8'.
+
+The op_flags and iter_flags fields for PyUFuncObject type are now exposed
+and can be set at the C level. This is the same functionality that is
+already available with nditer objects in the Python API. For example, the
+first ufunc operand can be modified in place by writing the appropriate
+ufunc loop and setting ufunc->op_flags[0] = NPY_ITER_READWRITE before
+calling PyUFunc_RegisterLoopForType.
 
 Changes
 =======

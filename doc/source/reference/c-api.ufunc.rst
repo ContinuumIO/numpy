@@ -140,6 +140,15 @@ Functions
     in as *arg_types* which must be a pointer to memory at least as
     large as ufunc->nargs.
 
+.. cfunction:: int PyUFunc_RegisterLoopForStructType(PyUFuncObject* ufunc,
+   PyArray_Descr* user_dtype, PyUFuncGenericFunction function, PyArray_Descr** arg_dtypes, void* data)
+   
+    The function allows the user to register a 1-d loop as above, but
+    for struct data-types. The struct data-types the loop requires are
+    passed in as *arg_types* which must be a pointer to memory at least
+    as large as ufunc->nargs.
+
+
 .. cfunction:: int PyUFunc_ReplaceLoopBySignature(PyUFuncObject* ufunc,
    PyUFuncGenericFunction newfunc, int* signature,
    PyUFuncGenericFunction* oldfunc)
@@ -353,6 +362,54 @@ structure.
     from their object arrays and placed into an argument tuple, the Python
     *callable* is called with the input arguments, and the nout
     outputs are placed into their object arrays.
+
+UFunc Flags
+-----------
+The op_flags attribute of the PyUFuncObject data structure is used to indicate
+how each operand is used by the ufunc. By default, input operands are set to
+read only, and output operands and set to write only. The defaults can be
+overriden by setting each entry of the op_flags array to one of the following
+constants:
+
+NPY_ITER_READWRITE
+The operand will be read from and written to
+NPY_ITER_READONLY
+The operand will only be read from
+NPY_ITER_WRITEONLY
+The operand will only be written to
+NPY_ITER_NBO
+The operand's data must be in native byte order
+NPY_ITER_ALIGNED
+The operand's data must be aligned
+NPY_ITER_CONTIG
+The operand's data must be contiguous (within the inner loop)
+NPY_ITER_COPY
+The operand may be copied to satisfy requirements
+NPY_ITER_UPDATEIFCOPY
+The operand may be copied with UPDATEIFCOPY to satisfy requirements
+NPY_ITER_ALLOCATE
+Allocate the operand if it is NULL
+NPY_ITER_NO_SUBTYPE
+If an operand is allocated, don't use any subtype
+NPY_ITER_VIRTUAL
+This is a virtual array slot, operand is NULL but temporary data is there
+NPY_ITER_NO_BROADCAST
+Require that the dimension match the iterator dimensions exactly
+NPY_ITER_WRITEMASKED
+A mask is being used on this array, affects buffer -> array copy
+NPY_ITER_ARRAYMASK
+This array is the mask for all WRITEMASKED operands
+
+Example:
+
+# Create inplace multiply ufunc for rational dtype that stores result
+# in first operand.
+PyObject* ufunc = PyUFunc_FromFuncAndData(0,0,0,0,2,0,PyUFunc_None,(char*)"inplace_multiply",(char*)"inplace multiply for custom rational dtype",0);
+((PyUFuncObject*)ufunc)->op_flags[0] = NPY_ITER_READWRITE;
+((PyUFuncObject*)ufunc)->iter_flags = NPY_ITER_REDUCE_OK;
+int ufunc_types[] = {npy_rational, npy_rational};
+PyUFunc_RegisterLoopForType((PyUFuncObject*)ufunc,npy_rational,rational_ufunc_inplace_multiply,ufunc_types,0);
+PyModule_AddObject(m,"inplace_multiply",(PyObject*)ufunc);
 
 
 Importing the API
