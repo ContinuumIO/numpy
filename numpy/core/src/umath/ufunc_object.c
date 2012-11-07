@@ -715,6 +715,7 @@ static int get_ufunc_arguments(PyUFuncObject *ufunc,
                 PyArrayObject **out_wheremask)
 {
     int i, nargs, nin = ufunc->nin, nout = ufunc->nout;
+    int type_num;
     PyObject *obj, *context;
     PyObject *str_key_obj = NULL;
     char *ufunc_name;
@@ -759,7 +760,7 @@ static int get_ufunc_arguments(PyUFuncObject *ufunc,
             return -1;
         }
 
-        int type_num = PyArray_DESCR(out_op[i])->type_num;
+        type_num = PyArray_DESCR(out_op[i])->type_num;
         if (!any_flexible &&
                 PyTypeNum_ISFLEXIBLE(type_num)) {
             any_flexible = 1;
