@@ -1304,7 +1304,9 @@ get_nbo_cast_transfer_function(int aligned,
         if (src_dtype->type_num == NPY_DATETIME) {
             switch (dst_dtype->type_num) {
                 case NPY_STRING:
-                    *out_needs_api = 1;
+                    if (out_needs_api) {
+                        *out_needs_api = 1;
+                    }
                     *out_needs_wrap = !PyArray_ISNBO(src_dtype->byteorder);
                     return get_nbo_datetime_to_string_transfer_function(
                                         aligned,
@@ -1324,7 +1326,9 @@ get_nbo_cast_transfer_function(int aligned,
         else if (dst_dtype->type_num == NPY_DATETIME) {
             switch (src_dtype->type_num) {
                 case NPY_STRING:
-                    *out_needs_api = 1;
+                    if (out_needs_api) {
+                        *out_needs_api = 1;
+                    }
                     *out_needs_wrap = !PyArray_ISNBO(dst_dtype->byteorder);
                     return get_nbo_string_to_datetime_transfer_function(
                                         aligned,
@@ -1348,25 +1352,11 @@ get_nbo_cast_transfer_function(int aligned,
                       !PyArray_ISNBO(dst_dtype->byteorder);
 
     /* Check the data types whose casting functions use API calls */
-    switch (src_dtype->type_num) {
-        case NPY_OBJECT:
-        case NPY_STRING:
-        case NPY_UNICODE:
-        case NPY_VOID:
-            if (out_needs_api) {
-                *out_needs_api = 1;
-            }
-            break;
-    }
-    switch (dst_dtype->type_num) {
-        case NPY_OBJECT:
-        case NPY_STRING:
-        case NPY_UNICODE:
-        case NPY_VOID:
-            if (out_needs_api) {
-                *out_needs_api = 1;
-            }
-            break;
+    if (PyDataType_FLAGCHK(src_dtype, NPY_NEEDS_PYAPI) ||
+                PyDataType_FLAGCHK(dst_dtype, NPY_NEEDS_PYAPI)) {
+        if (out_needs_api) {
+            *out_needs_api = 1;
+        }
     }
 
     /* Get the cast function */
@@ -3921,7 +3911,7 @@ PyArray_PrepareOneRawArrayIter(int ndim, npy_intp *shape,
     }
 
     /* Sort the axes based on the destination strides */
-    PyArray_CreateSortedStridePerm(ndim, shape, strides, strideperm);
+    PyArray_CreateSortedStridePerm(ndim, strides, strideperm);
     for (i = 0; i < ndim; ++i) {
         int iperm = strideperm[ndim - i - 1].perm;
         out_shape[i] = shape[iperm];
@@ -4051,7 +4041,7 @@ PyArray_PrepareTwoRawArrayIter(int ndim, npy_intp *shape,
     }
 
     /* Sort the axes based on the destination strides */
-    PyArray_CreateSortedStridePerm(ndim, shape, stridesA, strideperm);
+    PyArray_CreateSortedStridePerm(ndim, stridesA, strideperm);
     for (i = 0; i < ndim; ++i) {
         int iperm = strideperm[ndim - i - 1].perm;
         out_shape[i] = shape[iperm];
@@ -4185,7 +4175,7 @@ PyArray_PrepareThreeRawArrayIter(int ndim, npy_intp *shape,
     }
 
     /* Sort the axes based on the destination strides */
-    PyArray_CreateSortedStridePerm(ndim, shape, stridesA, strideperm);
+    PyArray_CreateSortedStridePerm(ndim, stridesA, strideperm);
     for (i = 0; i < ndim; ++i) {
         int iperm = strideperm[ndim - i - 1].perm;
         out_shape[i] = shape[iperm];
