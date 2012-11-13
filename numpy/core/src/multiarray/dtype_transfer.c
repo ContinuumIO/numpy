@@ -3911,7 +3911,7 @@ PyArray_PrepareOneRawArrayIter(int ndim, npy_intp *shape,
     }
 
     /* Sort the axes based on the destination strides */
-    PyArray_CreateSortedStridePerm(ndim, shape, strides, strideperm);
+    PyArray_CreateSortedStridePerm(ndim, strides, strideperm);
     for (i = 0; i < ndim; ++i) {
         int iperm = strideperm[ndim - i - 1].perm;
         out_shape[i] = shape[iperm];
@@ -4041,7 +4041,7 @@ PyArray_PrepareTwoRawArrayIter(int ndim, npy_intp *shape,
     }
 
     /* Sort the axes based on the destination strides */
-    PyArray_CreateSortedStridePerm(ndim, shape, stridesA, strideperm);
+    PyArray_CreateSortedStridePerm(ndim, stridesA, strideperm);
     for (i = 0; i < ndim; ++i) {
         int iperm = strideperm[ndim - i - 1].perm;
         out_shape[i] = shape[iperm];
@@ -4175,7 +4175,7 @@ PyArray_PrepareThreeRawArrayIter(int ndim, npy_intp *shape,
     }
 
     /* Sort the axes based on the destination strides */
-    PyArray_CreateSortedStridePerm(ndim, shape, stridesA, strideperm);
+    PyArray_CreateSortedStridePerm(ndim, stridesA, strideperm);
     for (i = 0; i < ndim; ++i) {
         int iperm = strideperm[ndim - i - 1].perm;
         out_shape[i] = shape[iperm];
