@@ -32,6 +32,8 @@ will increment the first and second items in the array, and will increment
 the third item twice:
 numpy.add.at(array, [0, 1, 2, 2], 1)
 
+This is similar to doing array[[0, 1, 2, 2]] += 1
+
 umath_linalg module
 -------------------
 This module provides gufuncs for several functions that were already present
