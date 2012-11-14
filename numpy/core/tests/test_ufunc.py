@@ -763,7 +763,6 @@ class TestUfunc(TestCase):
         assert_array_equal(a, [4, 5, 6])
 
     def test_inplace_fancy_indexing(self):
-        # 'at' method is equivalent to a[:,idx] += b
 
         a = np.arange(10)
         indices = np.array([2,5,2])
