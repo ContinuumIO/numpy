@@ -5690,6 +5690,9 @@ add_newdoc('numpy.core', 'ufunc', ('at',
     Items can be listed more than once and operation will be performed
     on result of operation on previous item.
 
+    Equivalent to a[indices] += b for addition ufunc, except that results
+    are accumulated for indices listed more than once.
+
     Parameters
     ----------
     a : array_like
@@ -5714,7 +5717,8 @@ add_newdoc('numpy.core', 'ufunc', ('at',
 
     ::
 
-    Add items 0 and 1 in two arrays, and store results in first array:
+    Add items 0 and 1 in first array to second array,
+    and store results in first array:
 
     np.add.at(a, [0, 1], b)
 

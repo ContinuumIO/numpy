@@ -4824,34 +4824,46 @@ ufunc_at(PyUFuncObject *ufunc, PyObject *args, PyObject *kwds)
     PyArrayObject *op2_array = NULL;
     PyArrayMapIterObject *iter = NULL;
     PyArrayIterObject *iter2 = NULL;
+    PyArray_Descr *iter_descr = NULL;
     PyArray_Descr *dtypes[3];
     int needs_api;
-    npy_intp first_item[1];
     PyUFuncGenericFunction innerloop;
     void *innerloopdata;
     char *dataptr[3];
     npy_intp count[1], stride[1];
-    int i, j;
+    int ndim;
+    int i;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|O", kwlist,
                                 &op1, &idx, &op2)) {
-        goto fail;
+        return NULL;
     }
 
     if (ufunc->nin == 2 && op2 == NULL) {
         PyErr_SetString(PyExc_ValueError,
                         "second operand needed for ufunc");
-        goto fail;
+        return NULL;
     }
 
     if (!PyArray_Check(op1)) {
         PyErr_SetString(PyExc_TypeError,
                         "first operand must be array");
-        goto fail;
+        return NULL;
     }
 
-    op1_array = (PyArrayObject *)PyArray_FromAny(op1, NULL, 0, 0, 0, NULL);
-    if (op1_array == NULL) {
+    op1_array = op1;
+    
+    ndim = PyArray_NDIM(op1_array);
+    if (PyTuple_Check(idx)) {
+        if (PyTuple_GET_SIZE(idx) != ndim) {
+            PyErr_SetString(PyExc_ValueError,
+                "number of dimensions in index must match number of dimensions in first operand");
+            goto fail;
+        }
+    }
+    else if (ndim > 1) {
+        PyErr_SetString(PyExc_ValueError,
+            "number of dimensions in index must match number of dimensions in first operand");
         goto fail;
     }
 
@@ -4866,34 +4878,33 @@ ufunc_at(PyUFuncObject *ufunc, PyObject *args, PyObject *kwds)
     }
     PyArray_MapIterReset(iter);
 
-    /* If second operand is a scalar, create 0 dim array from it */
-    if (op2 != NULL && PyArray_IsAnyScalar(op2)) {
-        op2_array = (PyArrayObject *)PyArray_FromAny(op2, NULL, 0, 0, 0, NULL);
-        if (op2_array == NULL) {
-            PyErr_SetString(PyExc_TypeError,
-                "could not convert scalar to array");
-            goto fail;
-        }
-
-        iter2 = NULL;
-        first_item[0] = 0;
-    }
-    /* If second operand is an array like object,
-       create MapIter object for it */
-    else if (op2 != NULL) {
-        op2_array = (PyArrayObject *)PyArray_FromAny(op2, NULL, 0, 0, 0, NULL);
+    /* If second operand exists, we need to broadcast it to 
+       the shape of the indices applied to the first operand.
+       This will produce an iterator that will match up with
+       the iterator for the first operand. */
+    if (op2 != NULL) {
+        iter_descr = PyArray_DESCR(iter->ait->ao);
+        op2_array = (PyArrayObject *)PyArray_FromAny(op2, iter_descr,
+                                0, 0, NPY_ARRAY_FORCECAST, NULL);
         if (op2_array == NULL) {
             goto fail;
         }
-
-        int ndims = PyArray_NDIM(op1_array);
-        npy_intp *dims = PyArray_DIMS(op1_array);
-        iter2 = PyArray_BroadcastToShape(op2_array, iter->dimensions, iter->nd);
-        if (iter2 == NULL) {
-            goto fail;
+        if ((iter->subspace != NULL) && (iter->consec)) {
+            if (iter->iteraxes[0] > 0) {  /* then we need to swap */
+                PyArray_MapIterSwapAxes(iter, &op2_array, 0);
+                if (op2_array == NULL) {
+                    goto fail;
+                }
+            }
         }
 
-        PyArray_ITER_RESET(iter2);
+        /* Be sure values array is "broadcastable"
+           to shape of mit->dimensions, mit->nd */
+        if ((iter2 = (PyArrayIterObject *)\
+             PyArray_BroadcastToShape((PyObject *)op2_array,
+                                        iter->dimensions, iter->nd))==NULL) {
+            goto fail;
+        }
     }
 
     /* Create dtypes array for either one or two input operands.
@@ -4916,7 +4927,8 @@ ufunc_at(PyUFuncObject *ufunc, PyObject *args, PyObject *kwds)
     count[0] = 1;
     stride[0] = 1;
  
-    /* Loop through all indices and call ufunc for each index */
+    /* Iterate over first and second operands and call ufunc
+       for each pair of inputs */
     i = iter->size;
     while (i > 0)
     {
@@ -4925,10 +4937,6 @@ ufunc_at(PyUFuncObject *ufunc, PyObject *args, PyObject *kwds)
         dataptr[0] = iter->dataptr;
         if (iter2 != NULL) {
             dataptr[1] = PyArray_ITER_DATA(iter2);
-            dataptr[2] = iter->dataptr;
-        }
-        else if (op2_array != NULL) {
-            dataptr[1] = PyArray_GetPtr(op2_array, first_item);
             dataptr[2] = iter->dataptr;
         }
         else {

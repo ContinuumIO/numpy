@@ -22,6 +22,15 @@ workarounds around known issues.
 			     umath_linalg
 			     ------------
 
+A wrapper module is provides that works around some limitations on the handling
+of keyword parameters in gufuncs by adding a very thin python layer around the
+actual gufuncs. For example, chosolve is implemented as a wrapper that takes a
+keyword parameter "UPLO". Depending on its value the appropriate gufunc will be
+called (chosolve_up or chosolve_lo). The wrapper module is 
+numpy.core.gufuncs_linalg and should be preferred to direct umath_linalg calls.
+Note that this wrapper module is written in python and its contents should be
+easy to inspect.
+
 			       Contents
 The following functions are already implemented:
 
@@ -115,6 +124,8 @@ name, so for eigh we have the functions eigh_lo and eigh_up (for 'L' and 'U').
 
 Similar techniques have been applied in other places.
 
+Note that this is hidden when using the gufuncs_linalg wrapper module.
+
 			     Note on svd
 svd uses uniform parameters to specify the result types it will be producing
 (full_matrices and compute_uv in numpy.linalg).
@@ -138,6 +149,15 @@ if compute_uv:
    else:
       func += '_s'
 
+This should be transparent when using the gufuncs_linalg module.
+
+		     Bug in numpy gufunc harness
+The bug in the gufunc harness that was preventing using a dimension name more than
+once in a single operand has been fixed. This bug was preventing some versions of
+svd to be functional. It also meant that some other gufuncs that required square
+matrices where implemented with signatures that did not enforce the matrices to be
+square, resulting in undefined behavior if the kernel was applied in non-square
+kernels.
 
 			   *** Changes ***
 2012-11-15
