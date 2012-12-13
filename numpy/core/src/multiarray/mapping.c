@@ -1727,12 +1727,14 @@ PyArray_MapIterBind(PyArrayMapIterObject *mit, PyArrayObject *arr)
     if (mit->ait == NULL) {
         return;
     }
+
+    /* Set up default iteraxes array values */
+    n = PyArray_NDIM(arr);
+    for (i = 0; i < n; i++) {
+        mit->iteraxes[i] = i;
+    }
     /* no subspace iteration needed.  Finish up and Return */
     if (subnd == 0) {
-        n = PyArray_NDIM(arr);
-        for (i = 0; i < n; i++) {
-            mit->iteraxes[i] = i;
-        }
         goto finish;
     }
 
