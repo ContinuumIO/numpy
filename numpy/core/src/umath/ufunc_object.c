@@ -2043,7 +2043,8 @@ PyUFunc_GeneralizedFunction(PyUFuncObject *ufunc,
     iter_flags = ufunc->iter_flags|
                  NPY_ITER_MULTI_INDEX|
                  NPY_ITER_REFS_OK|
-                 NPY_ITER_REDUCE_OK;
+                 NPY_ITER_REDUCE_OK|
+                 NPY_ITER_ZEROSIZE_OK;
 
     /*
      * If there are no iteration dimensions, create a fake one
@@ -2147,8 +2148,8 @@ PyUFunc_GeneralizedFunction(PyUFuncObject *ufunc,
 
     NPY_UF_DBG_PRINT("Executing inner loop\n");
 
-    /* Do the ufunc loop */
     if (NpyIter_GetIterSize(iter) != 0) {
+        /* Do the ufunc loop */
         NpyIter_IterNextFunc *iternext;
         char **dataptr;
         npy_intp *count_ptr;
@@ -2167,6 +2168,36 @@ PyUFunc_GeneralizedFunction(PyUFuncObject *ufunc,
             inner_dimensions[0] = *count_ptr;
             innerloop(dataptr, inner_dimensions, inner_strides, innerloopdata);
         } while (iternext(iter));
+    } else {
+        /**
+         * For each output operand, check if it has non-zero size,
+         * and assign the identity if it does. For example, a dot
+         * product of two zero-length arrays will be a scalar,
+         * which has size one.
+         */
+        for (i = nin; i < nop; ++i) {
+            if (PyArray_SIZE(op[i]) != 0) {
+                switch (ufunc->identity) {
+                    case PyUFunc_Zero:
+                        assign_reduce_identity_zero(op[i]);
+                        break;
+                    case PyUFunc_One:
+                        assign_reduce_identity_one(op[i]);
+                        break;
+                    case PyUFunc_None:
+                    case PyUFunc_ReorderableNone:
+                        PyErr_Format(PyExc_ValueError,
+                                "ufunc %s ",
+                                ufunc_name);
+                        goto fail;
+                    default:
+                        PyErr_Format(PyExc_ValueError,
+                                "ufunc %s has an invalid identity for reduction",
+                                ufunc_name);
+                        goto fail;
+                }
+            }
+        }
     }
 
     /* Check whether any errors occurred during the loop */
