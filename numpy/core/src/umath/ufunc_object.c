@@ -1698,6 +1698,18 @@ make_arr_prep_args(npy_intp nin, PyObject *args, PyObject *kwds)
 }
 
 static int
+assign_reduce_identity_zero(PyArrayObject *result, void *data)
+{
+  return PyArray_FillWithScalar(result, PyArrayScalar_False);
+}
+
+static int
+assign_reduce_identity_one(PyArrayObject *result, void *data)
+{
+  return PyArray_FillWithScalar(result, PyArrayScalar_True);
+}
+
+static int
 PyUFunc_GeneralizedFunction(PyUFuncObject *ufunc,
                         PyObject *args, PyObject *kwds,
                         PyArrayObject **op)
@@ -2637,18 +2649,6 @@ reduce_type_resolver(PyUFuncObject *ufunc, PyArrayObject *arr,
     *out_dtype = dtypes[2];
 
     return 0;
-}
-
-static int
-assign_reduce_identity_zero(PyArrayObject *result, void *data)
-{
-    return PyArray_FillWithScalar(result, PyArrayScalar_False);
-}
-
-static int
-assign_reduce_identity_one(PyArrayObject *result, void *data)
-{
-    return PyArray_FillWithScalar(result, PyArrayScalar_True);
 }
 
 static int
