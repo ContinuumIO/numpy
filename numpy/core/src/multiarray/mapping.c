@@ -1706,7 +1706,7 @@ PyArray_MapIterNext(PyArrayMapIterObject *mit)
  * as well.
  */
 /*NUMPY_API*/
-NPY_NO_EXPORT void
+NPY_NO_EXPORT int
 PyArray_MapIterBind(PyArrayMapIterObject *mit, PyArrayObject *arr)
 {
     int subnd;
