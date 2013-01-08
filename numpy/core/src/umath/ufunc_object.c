@@ -2191,10 +2191,10 @@ PyUFunc_GeneralizedFunction(PyUFuncObject *ufunc,
             if (PyArray_SIZE(op[i]) != 0) {
                 switch (ufunc->identity) {
                     case PyUFunc_Zero:
-                        assign_reduce_identity_zero(op[i]);
+                        assign_reduce_identity_zero(op[i], NULL);
                         break;
                     case PyUFunc_One:
-                        assign_reduce_identity_one(op[i]);
+                        assign_reduce_identity_one(op[i], NULL);
                         break;
                     case PyUFunc_None:
                     case PyUFunc_ReorderableNone:
