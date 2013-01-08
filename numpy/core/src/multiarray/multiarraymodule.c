@@ -208,7 +208,7 @@ PyArray_AsCArray(PyObject **op, void *ptr, npy_intp *dims, int nd,
             goto fail;
         }
         for (i = 0; i < n; i++) {
-            ptr2[i] = PyArray_DATA(ap) + i*PyArray_STRIDES(ap)[0];
+            ptr2[i] = PyArray_BYTES(ap) + i*PyArray_STRIDES(ap)[0];
         }
         *((char ***)ptr) = ptr2;
         break;
@@ -222,7 +222,7 @@ PyArray_AsCArray(PyObject **op, void *ptr, npy_intp *dims, int nd,
         for (i = 0; i < n; i++) {
             ptr3[i] = ptr3[n + (m-1)*i];
             for (j = 0; j < m; j++) {
-                ptr3[i][j] = PyArray_DATA(ap) + i*PyArray_STRIDES(ap)[0] + j*PyArray_STRIDES(ap)[1];
+                ptr3[i][j] = PyArray_BYTES(ap) + i*PyArray_STRIDES(ap)[0] + j*PyArray_STRIDES(ap)[1];
             }
         }
         *((char ****)ptr) = ptr3;
@@ -862,6 +862,11 @@ PyArray_InnerProduct(PyObject *op1, PyObject *op2)
     if (ret == NULL) {
         goto fail;
     }
+    /* Ensure that multiarray.inner(<Nx0>,<Mx0>) -> zeros((N,M)) */
+    if (PyArray_SIZE(ap1) == 0 && PyArray_SIZE(ap2) == 0) {
+        memset(PyArray_DATA(ret), 0, PyArray_NBYTES(ret));
+    }
+
     dot = (PyArray_DESCR(ret)->f->dotfunc);
     if (dot == NULL) {
         PyErr_SetString(PyExc_ValueError,
@@ -876,16 +881,13 @@ PyArray_InnerProduct(PyObject *op1, PyObject *op2)
     axis = PyArray_NDIM(ap2) - 1;
     it2 = (PyArrayIterObject *) PyArray_IterAllButAxis((PyObject *)ap2, &axis);
     NPY_BEGIN_THREADS_DESCR(PyArray_DESCR(ap2));
-    while (1) {
+    while (it1->index < it1->size) {
         while (it2->index < it2->size) {
             dot(it1->dataptr, is1, it2->dataptr, is2, op, l, ret);
             op += os;
             PyArray_ITER_NEXT(it2);
         }
         PyArray_ITER_NEXT(it1);
-        if (it1->index >= it1->size) {
-            break;
-        }
         PyArray_ITER_RESET(it2);
     }
     NPY_END_THREADS_DESCR(PyArray_DESCR(ap2));
@@ -994,10 +996,6 @@ PyArray_MatrixProduct2(PyObject *op1, PyObject *op2, PyArrayObject* out)
     if (PyArray_SIZE(ap1) == 0 && PyArray_SIZE(ap2) == 0) {
         memset(PyArray_DATA(ret), 0, PyArray_NBYTES(ret));
     }
-    else {
-        /* Ensure that multiarray.dot([],[]) -> 0 */
-        memset(PyArray_DATA(ret), 0, PyArray_ITEMSIZE(ret));
-    }
 
     dot = PyArray_DESCR(ret)->f->dotfunc;
     if (dot == NULL) {
@@ -1013,16 +1011,13 @@ PyArray_MatrixProduct2(PyObject *op1, PyObject *op2, PyArrayObject* out)
     it2 = (PyArrayIterObject *)
         PyArray_IterAllButAxis((PyObject *)ap2, &matchDim);
     NPY_BEGIN_THREADS_DESCR(PyArray_DESCR(ap2));
-    while (1) {
+    while (it1->index < it1->size) {
         while (it2->index < it2->size) {
             dot(it1->dataptr, is1, it2->dataptr, is2, op, l, ret);
             op += os;
             PyArray_ITER_NEXT(it2);
         }
         PyArray_ITER_NEXT(it1);
-        if (it1->index >= it1->size) {
-            break;
-        }
         PyArray_ITER_RESET(it2);
     }
     NPY_END_THREADS_DESCR(PyArray_DESCR(ap2));
@@ -1177,7 +1172,7 @@ _pyarray_correlate(PyArrayObject *ap1, PyArrayObject *ap2, int typenum,
     op = PyArray_DATA(ret);
     os = PyArray_DESCR(ret)->elsize;
     ip1 = PyArray_DATA(ap1);
-    ip2 = PyArray_DATA(ap2) + n_left*is2;
+    ip2 = PyArray_BYTES(ap2) + n_left*is2;
     n = n - n_left;
     for (i = 0; i < n_left; i++) {
         dot(ip1, is1, ip2, is2, op, n, ret);
@@ -3783,7 +3778,7 @@ setup_scalartypes(PyObject *NPY_UNUSED(dict))
     SINGLE_INHERIT(Bool, Generic);
     SINGLE_INHERIT(Byte, SignedInteger);
     SINGLE_INHERIT(Short, SignedInteger);
-#if SIZEOF_INT == SIZEOF_LONG && !defined(NPY_PY3K)
+#if NPY_SIZEOF_INT == NPY_SIZEOF_LONG && !defined(NPY_PY3K)
     DUAL_INHERIT(Int, Int, SignedInteger);
 #else
     SINGLE_INHERIT(Int, SignedInteger);
@@ -3793,7 +3788,7 @@ setup_scalartypes(PyObject *NPY_UNUSED(dict))
 #else
     SINGLE_INHERIT(Long, SignedInteger);
 #endif
-#if NPY_SIZEOF_LONGLONG == SIZEOF_LONG && !defined(NPY_PY3K)
+#if NPY_SIZEOF_LONGLONG == NPY_SIZEOF_LONG && !defined(NPY_PY3K)
     DUAL_INHERIT(LongLong, Int, SignedInteger);
 #else
     SINGLE_INHERIT(LongLong, SignedInteger);

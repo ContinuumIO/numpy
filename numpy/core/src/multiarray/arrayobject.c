@@ -103,7 +103,7 @@ PyArray_SetUpdateIfCopyBase(PyArrayObject *arr, PyArrayObject *base)
     /*
      * Unlike PyArray_SetBaseObject, we do not compress the chain of base
      * references.
-    */
+     */
     ((PyArrayObject_fields *)arr)->base = (PyObject *)base;
     PyArray_ENABLEFLAGS(arr, NPY_ARRAY_UPDATEIFCOPY);
     PyArray_CLEARFLAGS(base, NPY_ARRAY_WRITEABLE);
@@ -143,11 +143,12 @@ PyArray_SetBaseObject(PyArrayObject *arr, PyObject *obj)
     }
 
     /*
-     * Don't allow chains of views, always set the base
-     * to the owner of the data. That is, either the first object
-     * which isn't an array, or the first object which owns
-     * its own data.
+     * Don't allow infinite chains of views, always set the base
+     * to the first owner of the data.  
+     * That is, either the first object which isn't an array, 
+     * or the first object which owns its own data.
      */
+
     while (PyArray_Check(obj) && (PyObject *)arr != obj) {
         PyArrayObject *obj_arr = (PyArrayObject *)obj;
         PyObject *tmp;
@@ -155,17 +156,25 @@ PyArray_SetBaseObject(PyArrayObject *arr, PyObject *obj)
         /* Propagate WARN_ON_WRITE through views. */
         if (PyArray_FLAGS(obj_arr) & NPY_ARRAY_WARN_ON_WRITE) {
             PyArray_ENABLEFLAGS(arr, NPY_ARRAY_WARN_ON_WRITE);
-        }
+        }   
 
         /* If this array owns its own data, stop collapsing */
         if (PyArray_CHKFLAGS(obj_arr, NPY_ARRAY_OWNDATA)) {
             break;
-        }
-        /* If there's no base, stop collapsing */
+        }   
+
         tmp = PyArray_BASE(obj_arr);
+        /* If there's no base, stop collapsing */
         if (tmp == NULL) {
             break;
         }
+        /* Stop the collapse new base when the would not be of the same 
+         * type (i.e. different subclass).
+         */
+        if (Py_TYPE(tmp) != Py_TYPE(arr)) {
+            break;
+        }
+
 
         Py_INCREF(tmp);
         Py_DECREF(obj);
@@ -1455,20 +1464,23 @@ PyArray_CheckStrides(int elsize, int nd, npy_intp numbytes, npy_intp offset,
                      npy_intp *dims, npy_intp *newstrides)
 {
     int i;
-    npy_intp byte_begin;
-    npy_intp begin;
-    npy_intp end;
+    npy_intp max_axis_offset;
+    npy_intp begin, end;
+    npy_intp lower_offset;
+    npy_intp upper_offset;
 
     if (numbytes == 0) {
         numbytes = PyArray_MultiplyList(dims, nd) * elsize;
     }
+
     begin = -offset;
-    end = numbytes - offset - elsize;
-    for (i = 0; i < nd; i++) {
-        byte_begin = newstrides[i]*(dims[i] - 1);
-        if ((byte_begin < begin) || (byte_begin > end)) {
-            return NPY_FALSE;
-        }
+    end = numbytes - offset;
+
+    offset_bounds_from_strides(elsize, nd, dims, newstrides,
+                                        &lower_offset, &upper_offset);
+    
+    if ((upper_offset > end) || (lower_offset < begin)) {
+        return NPY_FALSE;
     }
     return NPY_TRUE;
 }

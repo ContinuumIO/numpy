@@ -102,6 +102,8 @@ array_strides_set(PyArrayObject *self, PyObject *obj)
     PyArrayObject *new;
     npy_intp numbytes = 0;
     npy_intp offset = 0;
+    npy_intp lower_offset = 0;
+    npy_intp upper_offset = 0;
     Py_ssize_t buf_len;
     char *buf;
 
@@ -131,25 +133,30 @@ array_strides_set(PyArrayObject *self, PyObject *obj)
     if (PyArray_BASE(new) && PyObject_AsReadBuffer(PyArray_BASE(new),
                                            (const void **)&buf,
                                            &buf_len) >= 0) {
-        offset = PyArray_DATA(self) - buf;
+        offset = PyArray_BYTES(self) - buf;
         numbytes = buf_len + offset;
     }
     else {
         PyErr_Clear();
-        numbytes = PyArray_MultiplyList(PyArray_DIMS(new),
-                            PyArray_NDIM(new))*PyArray_DESCR(new)->elsize;
-        offset = PyArray_DATA(self) - PyArray_DATA(new);
+        offset_bounds_from_strides(PyArray_ITEMSIZE(new), PyArray_NDIM(new),
+                                   PyArray_DIMS(new), PyArray_STRIDES(new),
+                                   &lower_offset, &upper_offset);
+
+        offset = PyArray_BYTES(self) - (PyArray_BYTES(new) + lower_offset);
+        numbytes = upper_offset - lower_offset;
     }
 
-    if (!PyArray_CheckStrides(PyArray_DESCR(self)->elsize, PyArray_NDIM(self), numbytes,
-                              offset,
+    /* numbytes == 0 is special here, but the 0-size array case always works */
+    if (!PyArray_CheckStrides(PyArray_ITEMSIZE(self), PyArray_NDIM(self),
+                              numbytes, offset,
                               PyArray_DIMS(self), newstrides.ptr)) {
         PyErr_SetString(PyExc_ValueError, "strides is not "\
                         "compatible with available memory");
         goto fail;
     }
     memcpy(PyArray_STRIDES(self), newstrides.ptr, sizeof(npy_intp)*newstrides.len);
-    PyArray_UpdateFlags(self, NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS);
+    PyArray_UpdateFlags(self, NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_F_CONTIGUOUS |
+                              NPY_ARRAY_ALIGNED);
     PyDimMem_FREE(newstrides.ptr);
     return 0;
 
@@ -383,7 +390,7 @@ static PyObject *
 array_size_get(PyArrayObject *self)
 {
     npy_intp size=PyArray_SIZE(self);
-#if NPY_SIZEOF_INTP <= SIZEOF_LONG
+#if NPY_SIZEOF_INTP <= NPY_SIZEOF_LONG
     return PyInt_FromLong((long) size);
 #else
     if (size > NPY_MAX_LONG || size < NPY_MIN_LONG) {
@@ -399,7 +406,7 @@ static PyObject *
 array_nbytes_get(PyArrayObject *self)
 {
     npy_intp nbytes = PyArray_NBYTES(self);
-#if NPY_SIZEOF_INTP <= SIZEOF_LONG
+#if NPY_SIZEOF_INTP <= NPY_SIZEOF_LONG
     return PyInt_FromLong((long) nbytes);
 #else
     if (nbytes > NPY_MAX_LONG || nbytes < NPY_MIN_LONG) {
@@ -665,7 +672,7 @@ _get_part(PyArrayObject *self, int imag)
                              PyArray_NDIM(self),
                              PyArray_DIMS(self),
                              PyArray_STRIDES(self),
-                             PyArray_DATA(self) + offset,
+                             PyArray_BYTES(self) + offset,
                              PyArray_FLAGS(self), (PyObject *)self);
     if (ret == NULL) {
         return NULL;

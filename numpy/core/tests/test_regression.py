@@ -203,15 +203,21 @@ class TestRegression(TestCase):
         d = buf[0]['data'][0]
         buf[0]['head'] = h
         buf[0]['data'][0] = d
-        print buf[0]['head']
         assert_(buf[0]['head'] == 1)
-
 
     def test_mem_dot(self,level=rlevel):
         """Ticket #106"""
         x = np.random.randn(0,1)
         y = np.random.randn(10,1)
-        z = np.dot(x, np.transpose(y))
+        # Dummy array to detect bad memory access:
+        _z = np.ones(10)
+        _dummy = np.empty((0, 10))
+        z = np.lib.stride_tricks.as_strided(_z, _dummy.shape, _dummy.strides)
+        np.dot(x, np.transpose(y), out=z)
+        assert_equal(_z, np.ones(10))
+        # Do the same for the built-in dot:
+        np.core.multiarray.dot(x, np.transpose(y), out=z)
+        assert_equal(_z, np.ones(10))
 
     def test_arange_endian(self,level=rlevel):
         """Ticket #111"""
@@ -1290,16 +1296,20 @@ class TestRegression(TestCase):
         np.dot(a['f0'], b['f0'])
 
     def test_byteswap_complex_scalar(self):
-        """Ticket #1259"""
-        z = np.array([-1j], '<c8')
-        x = z[0] # always native-endian
-        y = x.byteswap()
-        if x.dtype.byteorder == z.dtype.byteorder:
-            # little-endian machine
-            assert_equal(x, np.fromstring(y.tostring(), dtype='>c8'))
-        else:
-            # big-endian machine
-            assert_equal(x, np.fromstring(y.tostring(), dtype='<c8'))
+        """Ticket #1259 and gh-441"""
+        for dtype in [np.dtype('<'+t) for t in np.typecodes['Complex']]:
+            z = np.array([2.2-1.1j], dtype)
+            x = z[0] # always native-endian
+            y = x.byteswap()
+            if x.dtype.byteorder == z.dtype.byteorder:
+                # little-endian machine
+                assert_equal(x, np.fromstring(y.tostring(), dtype=dtype.newbyteorder()))
+            else:
+                # big-endian machine
+                assert_equal(x, np.fromstring(y.tostring(), dtype=dtype))
+            # double check real and imaginary parts:
+            assert_equal(x.real, y.real.byteswap())
+            assert_equal(x.imag, y.imag.byteswap())
 
     def test_structured_arrays_with_objects1(self):
         """Ticket #1299"""
@@ -1649,6 +1659,13 @@ class TestRegression(TestCase):
         assert_equal(r[0:3:2]['f1'][0][()], r[0:3:2][0]['f1'][()])
         assert_equal(r[0:3:2]['f1'][0].strides, r[0:3:2][0]['f1'].strides)
 
+    def test_alignment_update(self):
+        """Check that alignment flag is updated on stride setting"""
+        a = np.arange(10)
+        assert_(a.flags.aligned)
+        a.strides = 3
+        assert_(not a.flags.aligned)
+
     def test_ticket_1770(self):
         "Should not segfault on python 3k"
         import numpy as np
@@ -1798,6 +1815,23 @@ class TestRegression(TestCase):
         dtype = np.format_parser(['i4', 'i4'], [], [])
         a = np.recarray((2, ), dtype)
         assert_raises(TypeError, np.searchsorted, a, 1)
+
+    def test_complex64_alignment(self):
+        # Issue gh-2668 (trac 2076), segfault on sparc due to misalignment
+        dtt = np.complex64
+        arr = np.arange(10, dtype=dtt)
+        # 2D array
+        arr2 = np.reshape(arr, (2, 5))
+        # Fortran write followed by (C or F) read caused bus error
+        data_str = arr2.tostring('F')
+        data_back = np.ndarray(arr2.shape,
+                              arr2.dtype,
+                              buffer=data_str,
+                              order='F')
+        assert_array_equal(arr2, data_back)
+
+
+
 
 if __name__ == "__main__":
     run_module_suite()

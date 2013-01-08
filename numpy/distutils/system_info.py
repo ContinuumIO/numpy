@@ -214,6 +214,19 @@ else:
             default_x11_include_dirs.extend(['/usr/lib/X11/include',
                                              '/usr/include/X11'])
 
+    import subprocess as sp
+    try:
+        p = sp.Popen(["gcc", "-print-multiarch"], stdout=sp.PIPE,
+                stderr=open(os.devnull, 'w'))
+    except OSError:
+        pass # gcc is not installed
+    else:
+        triplet = str(p.communicate()[0].decode().strip())
+        if p.returncode == 0:
+            # gcc supports the "-print-multiarch" option
+            default_x11_lib_dirs += [os.path.join("/usr/lib/", triplet)]
+            default_lib_dirs += [os.path.join("/usr/lib/", triplet)]
+
 if os.path.join(sys.prefix, 'lib') not in default_lib_dirs:
     default_lib_dirs.insert(0, os.path.join(sys.prefix, 'lib'))
     default_include_dirs.append(os.path.join(sys.prefix, 'include'))
@@ -1623,6 +1636,9 @@ class _numpy_info(system_info):
             pass
         py_incl_dir = distutils.sysconfig.get_python_inc()
         include_dirs.append(py_incl_dir)
+        py_pincl_dir = distutils.sysconfig.get_python_inc(plat_specific=True)
+        if py_pincl_dir not in include_dirs:
+            include_dirs.append(py_pincl_dir)
         for d in default_include_dirs:
             d = os.path.join(d, os.path.basename(py_incl_dir))
             if d not in include_dirs:
@@ -1754,12 +1770,15 @@ class boost_python_info(system_info):
                 break
         if not src_dir:
             return
-        py_incl_dir = distutils.sysconfig.get_python_inc()
+        py_incl_dirs = [distutils.sysconfig.get_python_inc()]
+        py_pincl_dir = distutils.sysconfig.get_python_inc(plat_specific=True)
+        if py_pincl_dir not in py_incl_dirs:
+            py_incl_dirs.append(py_pincl_dir)
         srcs_dir = os.path.join(src_dir, 'libs', 'python', 'src')
         bpl_srcs = glob(os.path.join(srcs_dir, '*.cpp'))
         bpl_srcs += glob(os.path.join(srcs_dir, '*', '*.cpp'))
         info = {'libraries': [('boost_python_src',
-                               {'include_dirs': [src_dir, py_incl_dir],
+                               {'include_dirs': [src_dir] + py_incl_dirs,
                                 'sources':bpl_srcs}
                               )],
                 'include_dirs': [src_dir],

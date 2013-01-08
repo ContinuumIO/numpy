@@ -2,6 +2,10 @@
 NumPy 1.8.0 Release Notes
 =========================
 
+This release supports  Python 2.6 -2.7 and 3.1 - 3.3. Support for  Python
+2.4 and 2.5 has been dropped.
+
+
 
 Highlights
 ==========
@@ -10,16 +14,15 @@ Highlights
 Compatibility notes
 ===================
 
-numpy.diag, np.diagonal, and the diagonal method of ndarrays return
-a view onto the original array, instead of producing a copy.
+numpy.diag, np.diagonal, and the diagonal method of ndarrays return a view
+onto the original array, instead of producing a copy.
 
 selecting multiple fields out of an array also produces a view.
 
-The hash function of numpy.void scalars has been changed.  
-Previously the pointer to the data was hashed as an integer.
-Now, the hash function uses the tuple-hash algorithm to combine
-the hash functions of the elements of the scalar, but only if 
-the scalar is read-only.
+The hash function of numpy.void scalars has been changed.  Previously the
+pointer to the data was hashed as an integer.  Now, the hash function uses
+the tuple-hash algorithm to combine the hash functions of the elements of
+the scalar, but only if the scalar is read-only.
 
 New features
 ============
@@ -114,10 +117,6 @@ permuation array that sorts the array to search.
 C API
 -----
 
-New function ``PyArray_RequireWriteable`` provides a consistent
-interface for checking array writeability -- any C code which works
-with arrays whose WRITEABLE flag is not known to be True a priori,
-should make sure to call this function before writing.
 
 New function ``PyUFunc_RegisterLoopForStructType`` provides a way to
 register a ufunc for a structured array. For example, a ufunc could be
@@ -136,26 +135,6 @@ Changes
 General
 -------
 
-The function np.concatenate tries to match the layout of its input
-arrays. Previously, the layout did not follow any particular reason,
-and depended in an undesirable way on the particular axis chosen for
-concatenation. A bug was also fixed which silently allowed out of bounds
-axis arguments.
-
-The ufuncs logical_or, logical_and, and logical_not now follow Python's
-behavior with object arrays, instead of trying to call methods on the
-objects. For example the expression (3 and 'test') produces the string
-'test', and now np.logical_and(np.array(3, 'O'), np.array('test', 'O'))
-produces 'test' as well.
-
-
-DATETIME
---------
-
-There have been a lot of fixes and enhancements to datetime64. The notes
-in doc/source/reference/arrays.datetime.rst or in the generated
-documentation should be consulted for the details.
-
 
 Deprecations
 ============
@@ -163,24 +142,9 @@ Deprecations
 General
 -------
 
-Specifying a custom string formatter with a `_format` array attribute is
-deprecated. The new `formatter` keyword in ``numpy.set_printoptions`` or
-``numpy.array2string`` can be used instead.
-
-The deprecated imports in the polynomial package have been removed.
+Use of non-integer indices has been deprecated. Previously float indices
+were truncated to integers without warning.
 
 C-API
 -----
 
-Direct access to the fields of PyArrayObject* has been deprecated. Direct
-access has been recommended against for many releases. Expect similar
-deprecations for PyArray_Descr* and other core objects in the future as
-preparation for NumPy 2.0.
-
-The macros in old_defines.h are deprecated and will be removed in the next
-major release (>= 2.0). The sed script tools/replace_old_macros.sed can
-be used to replace these macros with the newer versions.
-
-You can test your code against the deprecated C API by #defining
-NPY_NO_DEPRECATED_API to the target version number, for example
-NPY_1_7_API_VERSION, before including any NumPy headers.

@@ -742,7 +742,7 @@ PyArray_PyIntAsInt(PyObject *o)
             return -1;
         }
 
-#if (SIZEOF_LONG > SIZEOF_INT)
+#if (NPY_SIZEOF_LONG > NPY_SIZEOF_INT)
     if ((long_value < INT_MIN) || (long_value > INT_MAX)) {
         PyErr_SetString(PyExc_ValueError, "integer won't fit into a C int");
         return -1;
@@ -774,9 +774,9 @@ PyArray_PyIntAsIntp(PyObject *o)
         goto finish;
     }
 
-#if NPY_SIZEOF_INTP == SIZEOF_LONG
+#if NPY_SIZEOF_INTP == NPY_SIZEOF_LONG
     descr = &LONG_Descr;
-#elif NPY_SIZEOF_INTP == SIZEOF_INT
+#elif NPY_SIZEOF_INTP == NPY_SIZEOF_INT
     descr = &INT_Descr;
 #else
     descr = &LONGLONG_Descr;
@@ -869,7 +869,7 @@ PyArray_IntpFromSequence(PyObject *seq, npy_intp *vals, int maxvals)
      */
     if ((nd=PySequence_Length(seq)) == -1) {
         if (PyErr_Occurred()) PyErr_Clear();
-#if SIZEOF_LONG >= NPY_SIZEOF_INTP && !defined(NPY_PY3K)
+#if NPY_SIZEOF_LONG >= NPY_SIZEOF_INTP && !defined(NPY_PY3K)
         if (!(op = PyNumber_Int(seq))) {
             return -1;
         }
@@ -879,7 +879,7 @@ PyArray_IntpFromSequence(PyObject *seq, npy_intp *vals, int maxvals)
         }
 #endif
         nd = 1;
-#if SIZEOF_LONG >= NPY_SIZEOF_INTP
+#if NPY_SIZEOF_LONG >= NPY_SIZEOF_INTP
         vals[0] = (npy_intp ) PyInt_AsLong(op);
 #else
         vals[0] = (npy_intp ) PyLong_AsLongLong(op);
@@ -908,7 +908,7 @@ PyArray_IntpFromSequence(PyObject *seq, npy_intp *vals, int maxvals)
             if (op == NULL) {
                 return -1;
             }
-#if SIZEOF_LONG >= NPY_SIZEOF_INTP
+#if NPY_SIZEOF_LONG >= NPY_SIZEOF_INTP
             vals[i]=(npy_intp )PyInt_AsLong(op);
 #else
             vals[i]=(npy_intp )PyLong_AsLongLong(op);
@@ -954,6 +954,9 @@ NPY_NO_EXPORT int
 PyArray_TypestrConvert(int itemsize, int gentype)
 {
     int newtype = NPY_NOTYPE;
+    PyArray_Descr *temp;
+    const char *msg = "Specified size is invalid for this data type.\n"
+        "Size will be ignored in NumPy 1.7 but may throw an exception in future versions.";
 
     switch (gentype) {
         case NPY_GENBOOLLTR:
@@ -1106,6 +1109,32 @@ PyArray_TypestrConvert(int itemsize, int gentype)
             }
             break;
     }
+   
+    /*
+     * Raise deprecate warning if new type hasn't been
+     * set yet and size char is invalid.
+     * This should eventually be changed to an error in
+     * future NumPy versions.
+     */
+    if (newtype == NPY_NOTYPE) {
+        temp = PyArray_DescrFromType(gentype);
+        if (temp != NULL) {
+            if (temp->elsize != itemsize) {
+                if (DEPRECATE(msg) < 0) {
+                    Py_DECREF(temp);
+                    return -1;
+                }
+
+                newtype = gentype;
+            }
+            else {
+                newtype = gentype;
+            }
+
+            Py_DECREF(temp);
+        }
+    }
+
     return newtype;
 }
 
@@ -1124,7 +1153,7 @@ PyArray_IntTupleFromIntp(int len, npy_intp *vals)
         goto fail;
     }
     for (i = 0; i < len; i++) {
-#if NPY_SIZEOF_INTP <= SIZEOF_LONG
+#if NPY_SIZEOF_INTP <= NPY_SIZEOF_LONG
         PyObject *o = PyInt_FromLong((long) vals[i]);
 #else
         PyObject *o = PyLong_FromLongLong((npy_longlong) vals[i]);

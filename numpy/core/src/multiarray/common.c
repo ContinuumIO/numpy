@@ -174,7 +174,15 @@ PyArray_DTypeFromObjectHelper(PyObject *obj, int maxdims,
                 if ((temp = PyObject_Str(obj)) == NULL) {
                     return -1;
                 }
+#if defined(NPY_PY3K)
+    #if PY_VERSION_HEX >= 0x03030000
+                itemsize = PyUnicode_GetLength(temp);
+    #else
+                itemsize = PyUnicode_GET_SIZE(temp);
+    #endif
+#else
                 itemsize = PyString_GET_SIZE(temp);
+#endif
             }
             else if (string_type == NPY_UNICODE) {
 #if defined(NPY_PY3K)
@@ -218,7 +226,15 @@ PyArray_DTypeFromObjectHelper(PyObject *obj, int maxdims,
                 if ((temp = PyObject_Str(obj)) == NULL) {
                     return -1;
                 }
+#if defined(NPY_PY3K)
+    #if PY_VERSION_HEX >= 0x03030000
+                itemsize = PyUnicode_GetLength(temp);
+    #else
+                itemsize = PyUnicode_GET_SIZE(temp);
+    #endif
+#else
                 itemsize = PyString_GET_SIZE(temp);
+#endif
             }
             else if (string_type == NPY_UNICODE) {
 #if defined(NPY_PY3K)
@@ -567,7 +583,7 @@ index2ptr(PyArrayObject *mp, npy_intp i)
     if (i == 0) {
         return PyArray_DATA(mp);
     }
-    return PyArray_DATA(mp)+i*PyArray_STRIDES(mp)[0];
+    return PyArray_BYTES(mp)+i*PyArray_STRIDES(mp)[0];
 }
 
 NPY_NO_EXPORT int
@@ -657,4 +673,34 @@ _IsWriteable(PyArrayObject *ap)
         return NPY_FALSE;
     }
     return NPY_TRUE;
+}
+
+
+NPY_NO_EXPORT void
+offset_bounds_from_strides(const int itemsize, const int nd,
+                           const npy_intp *dims, const npy_intp *strides,
+                           npy_intp *lower_offset, npy_intp *upper_offset) {
+    npy_intp max_axis_offset;
+    npy_intp lower = 0;
+    npy_intp upper = 0;
+    int i;
+
+    for (i = 0; i < nd; i++) {
+        if (dims[i] == 0) {
+            /* Empty array special case */
+            *lower_offset = 0;
+            *upper_offset = 0;
+            return;
+        }
+        max_axis_offset = strides[i] * (dims[i] - 1);
+        if (max_axis_offset > 0) {
+            upper += max_axis_offset;
+        }
+        else {
+            lower += max_axis_offset;
+        }
+    }
+    upper += itemsize;
+    *lower_offset = lower;
+    *upper_offset = upper;
 }

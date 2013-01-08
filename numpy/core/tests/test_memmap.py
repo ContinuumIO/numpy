@@ -1,8 +1,9 @@
+import sys
 from tempfile import NamedTemporaryFile, mktemp
 import os
 
 from numpy import memmap
-from numpy import arange, allclose
+from numpy import arange, allclose, asarray
 from numpy.testing import *
 
 class TestMemmap(TestCase):
@@ -64,6 +65,7 @@ class TestMemmap(TestCase):
                     shape=self.shape)
         self.assertEqual(fp.filename, self.tmpfp.name)
 
+    @dec.knownfailureif(sys.platform=='gnu0', "This test is known to fail on hurd")
     def test_flush(self):
         fp = memmap(self.tmpfp, dtype=self.dtype, mode='w+',
                     shape=self.shape)
@@ -103,6 +105,15 @@ class TestMemmap(TestCase):
         fp = memmap(self.tmpfp, dtype=self.dtype, mode='w+',
                     shape=self.shape)
         assert fp[:2, :2]._mmap is fp._mmap
+
+    def test_view(self):
+        fp = memmap(self.tmpfp, dtype=self.dtype, shape=self.shape)
+        new1 = fp.view()
+        new2 = new1.view()
+        assert(new1.base is fp)
+        assert(new2.base is fp)
+        new_array = asarray(fp)
+        assert(new_array.base is fp)
 
 if __name__ == "__main__":
     run_module_suite()

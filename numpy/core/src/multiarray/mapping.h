@@ -23,10 +23,11 @@ NPY_NO_EXPORT int
 array_ass_big_item(PyArrayObject *self, npy_intp i, PyObject *v);
 
 #if PY_VERSION_HEX < 0x02050000
-        #if SIZEOF_INT == NPY_SIZEOF_INTP
+        #if NPY_SIZEOF_INT == NPY_SIZEOF_INTP
                 #define array_ass_item array_ass_big_item
         #endif
 #else
+        /* SIZEOF_SIZE_T is nowhere defined, Py_ssize_t perhaps?*/
         #if SIZEOF_SIZE_T == NPY_SIZEOF_INTP
                 #define array_ass_item array_ass_big_item
         #endif
@@ -53,7 +54,7 @@ PyArray_MapIterReset(PyArrayMapIterObject *mit);
 NPY_NO_EXPORT void
 PyArray_MapIterNext(PyArrayMapIterObject *mit);
 
-NPY_NO_EXPORT void
+NPY_NO_EXPORT int
 PyArray_MapIterBind(PyArrayMapIterObject *, PyArrayObject *);
 
 NPY_NO_EXPORT PyObject*

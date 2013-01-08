@@ -20,6 +20,19 @@ class _FilterInvalids(object):
         np.seterr(**self.olderr)
 
 
+class TestConstants(TestCase):
+    def test_pi(self):
+        assert_allclose(ncu.pi, 3.141592653589793, 1e-15)
+
+
+    def test_e(self):
+        assert_allclose(ncu.e, 2.718281828459045, 1e-15)
+
+
+    def test_euler_gamma(self):
+        assert_allclose(ncu.euler_gamma, 0.5772156649015329, 1e-15)
+
+
 class TestDivision(TestCase):
     def test_division_int(self):
         # int division should follow Python
@@ -1228,6 +1241,13 @@ def test_reduceat():
     np.setbufsize(np.UFUNC_BUFSIZE_DEFAULT)
     assert_array_almost_equal(h1, h2)
 
+def test_reduceat_empty():
+    """Reduceat should work with empty arrays"""
+    indices = np.array([], 'i8')
+    x = np.array([], 'f8')
+    result = np.add.reduceat(x, indices)
+    assert_equal(result.dtype, x.dtype)
+    assert_equal(result.shape, (0,))
 
 def test_complex_nan_comparisons():
     nans = [complex(np.nan, 0), complex(0, np.nan), complex(np.nan, np.nan)]

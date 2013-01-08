@@ -414,7 +414,7 @@ def _check_fill_value(fill_value, ndtype):
             fill_value = np.array(_recursive_set_fill_value(fill_value, descr),
                                   dtype=ndtype)
     else:
-        if isinstance(fill_value, basestring) and (ndtype.char not in 'SV'):
+        if isinstance(fill_value, basestring) and (ndtype.char not in 'SVU'):
             fill_value = default_fill_value(ndtype)
         else:
             # In case we want to convert 1e+20 to int...
@@ -2852,7 +2852,45 @@ class MaskedArray(ndarray):
         return result
 
 
-    def view(self, dtype=None, type=None):
+    def view(self, dtype=None, type=None, fill_value=None):
+        """
+        Return a view of the MaskedArray data
+
+        Parameters
+        ----------
+        dtype : data-type or ndarray sub-class, optional
+            Data-type descriptor of the returned view, e.g., float32 or int16.
+            The default, None, results in the view having the same data-type
+            as `a`. As with ``ndarray.view``, dtype can also be specified as
+            an ndarray sub-class, which then specifies the type of the
+            returned object (this is equivalent to setting the ``type``
+            parameter).
+        type : Python type, optional
+            Type of the returned view, e.g., ndarray or matrix.  Again, the
+            default None results in type preservation.
+
+        Notes
+        -----
+
+        ``a.view()`` is used two different ways:
+
+        ``a.view(some_dtype)`` or ``a.view(dtype=some_dtype)`` constructs a view
+        of the array's memory with a different data-type.  This can cause a
+        reinterpretation of the bytes of memory.
+
+        ``a.view(ndarray_subclass)`` or ``a.view(type=ndarray_subclass)`` just
+        returns an instance of `ndarray_subclass` that looks at the same array
+        (same shape, dtype, etc.)  This does not cause a reinterpretation of the
+        memory.
+
+        If `fill_value` is not specified, but `dtype` is specified (and is not
+        an ndarray sub-class), the `fill_value` of the MaskedArray will be
+        reset. If neither `fill_value` nor `dtype` are specified (or if
+        `dtype` is an ndarray sub-class), then the fill value is preserved.
+        Finally, if `fill_value` is specified, but `dtype` is not, the fill
+        value is set to the specified value.
+        """
+
         if dtype is None:
             if type is None:
                 output = ndarray.view(self)
@@ -2882,7 +2920,13 @@ class MaskedArray(ndarray):
                 pass
         # Make sure to reset the _fill_value if needed
         if getattr(output, '_fill_value', None) is not None:
-            output._fill_value = None
+            if fill_value is None:
+                if dtype is None:
+                    pass # leave _fill_value as is
+                else:
+                    output._fill_value = None
+            else:
+                output.fill_value = fill_value
         return output
     view.__doc__ = ndarray.view.__doc__
 
@@ -4749,6 +4793,7 @@ class MaskedArray(ndarray):
             dvar = masked
             if out is not None:
                 if isinstance(out, MaskedArray):
+                    out.flat = 0
                     out.__setmask__(True)
                 elif out.dtype.kind in 'biu':
                     errmsg = "Masked data information would be lost in one or "\
@@ -4773,10 +4818,10 @@ class MaskedArray(ndarray):
         ""
         dvar = self.var(axis=axis, dtype=dtype, out=out, ddof=ddof)
         if dvar is not masked:
-            dvar = sqrt(dvar)
             if out is not None:
                 np.power(out, 0.5, out=out, casting='unsafe')
                 return out
+            dvar = sqrt(dvar)
         return dvar
     std.__doc__ = np.std.__doc__
 
@@ -5509,8 +5554,7 @@ class mvoid(MaskedArray):
     #
     def __new__(self, data, mask=nomask, dtype=None, fill_value=None):
         dtype = dtype or data.dtype
-        _data = ndarray((), dtype=dtype)
-        _data[()] = data
+        _data = np.array(data, dtype=dtype)
         _data = _data.view(self)
         if mask is not nomask:
             if isinstance(mask, np.void):

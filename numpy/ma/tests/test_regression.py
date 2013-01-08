@@ -1,5 +1,6 @@
 from numpy.testing import *
 import numpy as np
+import numpy.ma as ma
 
 rlevel = 1
 
@@ -43,6 +44,19 @@ class TestRegression(TestCase):
         b = np.atleast_2d(a)
         assert_(a.mask.ndim == 1)
         assert_(b.mask.ndim == 2)
+
+    def test_set_fill_value_unicode_py3(self):
+        """Ticket #2733"""
+        a = np.ma.masked_array(['a', 'b', 'c'], mask=[1, 0, 0])
+        a.fill_value = 'X'
+        assert_(a.fill_value == 'X')
+
+    def test_var_sets_maskedarray_scalar(self):
+        """Issue gh-2757"""
+        a = np.ma.array(np.arange(5), mask=True)
+        mout = np.ma.array(-1, dtype=float)
+        a.var(out=mout)
+        assert_(mout._data == 0)
 
 
 if __name__ == "__main__":
