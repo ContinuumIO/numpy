@@ -1014,6 +1014,16 @@ class TestNaNFuncts(TestCase):
                             np.array([[ 0.02940178, 0.86861904, 0.44635648],
                                    [ 0.97452409, 0.87964135, 1.04850343],
                                    [ 1.63772083, 1.47245502, 0.70918589]]))
+        # Integer and boolean nansums should be identical to sum
+        a = np.array([127, 127, -120, 127], dtype=np.int8)
+        assert_array_equal(np.nansum(a), np.sum(a))
+        assert_array_equal(np.nansum(a).dtype, np.sum(a).dtype)
+        a = np.array([127, 127, 200, 127], dtype=np.uint8)
+        assert_array_equal(np.nansum(a), np.sum(a))
+        assert_array_equal(np.nansum(a).dtype, np.sum(a).dtype)
+        a = np.array([True, True, False, True])
+        assert_array_equal(np.nansum(a), np.sum(a))
+        assert_array_equal(np.nansum(a).dtype, np.sum(a).dtype)
 
     def test_nanmin(self):
         assert_almost_equal(nanmin(self.A), 0.01319214)
