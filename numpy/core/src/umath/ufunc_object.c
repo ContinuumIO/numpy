@@ -4910,6 +4910,7 @@ ufunc_at(PyUFuncObject *ufunc, PyObject *args, PyObject *kwds)
        the iterator for the first operand. */
     if (op2 != NULL) {
         iter_descr = PyArray_DESCR(iter->ait->ao);
+        Py_INCREF(iter_descr);
         op2_array = (PyArrayObject *)PyArray_FromAny(op2, iter_descr,
                                 0, 0, NPY_ARRAY_FORCECAST, NULL);
         if (op2_array == NULL) {
