@@ -1359,6 +1359,28 @@ get_nbo_cast_transfer_function(int aligned,
         }
     }
 
+    /* Check the data types whose casting functions use API calls */
+    switch (src_dtype->type_num) {
+        case NPY_OBJECT:
+        case NPY_STRING:
+        case NPY_UNICODE:
+        case NPY_VOID:
+            if (out_needs_api) {
+                *out_needs_api = 1;
+            }
+            break;
+    }
+    switch (dst_dtype->type_num) {
+        case NPY_OBJECT:
+        case NPY_STRING:
+        case NPY_UNICODE:
+        case NPY_VOID:
+            if (out_needs_api) {
+                *out_needs_api = 1;
+            }
+            break;
+    }
+
     /* Get the cast function */
     castfunc = PyArray_GetCastFunc(src_dtype, dst_dtype->type_num);
     if (!castfunc) {
