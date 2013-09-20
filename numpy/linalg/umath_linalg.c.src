@@ -286,7 +286,7 @@ FNAME(zcopy)(int *n,
              f2c_doublecomplex *sx, int *incx,
              f2c_doublecomplex *sy, int *incy);
 
-extern float
+extern double
 FNAME(sdot)(int *n,
             float *sx, int *incx,
             float *sy, int *incy);
@@ -294,20 +294,20 @@ extern double
 FNAME(ddot)(int *n,
             double *sx, int *incx,
             double *sy, int *incy);
-extern f2c_complex
-FNAME(cdotu)(int *n,
+extern void
+FNAME(cdotu)(f2c_complex *ret_val, int *n,
              f2c_complex *sx, int *incx,
              f2c_complex *sy, int *incy);
-extern f2c_doublecomplex
-FNAME(zdotu)(int *n,
+extern void
+FNAME(zdotu)(f2c_doublecomplex *ret_val, int *n,
              f2c_doublecomplex *sx, int *incx,
              f2c_doublecomplex *sy, int *incy);
-extern f2c_complex
-FNAME(cdotc)(int *n,
+extern void
+FNAME(cdotc)(f2c_complex *ret_val, int *n,
              f2c_complex *sx, int *incx,
              f2c_complex *sy, int *incy);
-extern f2c_doublecomplex
-FNAME(zdotc)(int *n,
+extern void
+FNAME(zdotc)(f2c_doublecomplex *ret_val, int *n,
              f2c_doublecomplex *sx, int *incx,
              f2c_doublecomplex *sy, int *incy);
 
@@ -983,8 +983,36 @@ triu_@TYPE@_matrix(void *ptr, size_t n)
  */
 
 /**begin repeat
+   #ftyp=fortran_real,fortran_doublereal#
+   #ret_typ=fortran_doublereal,fortran_doublereal#
+   #dot=sdot,ddot#
+*/
+
+static inline void
+@dot@_inner1d_blas(@ret_typ@ *ret_val, int *dim, @ftyp@ *ip1, int *is1, @ftyp@ *ip2, int *is2)
+{
+    *ret_val = BLAS(@dot@)(dim, ip1, is1, ip2, is2);
+}
+
+/**end repeat**/
+
+/**begin repeat
+   #ftyp=fortran_complex,fortran_doublecomplex,fortran_complex,fortran_doublecomplex#
+   #dot=cdotu,zdotu,cdotc,zdotc#
+*/
+
+static inline void
+@dot@_inner1d_blas(@ftyp@ *ret_val, int *dim, @ftyp@ *ip1, int *is1, @ftyp@ *ip2, int *is2)
+{
+    BLAS(@dot@)(ret_val, dim, ip1, is1, ip2, is2);
+}
+
+/**end repeat**/
+
+/**begin repeat
    #typ=npy_float,npy_double,COMPLEX_t,DOUBLECOMPLEX_t,COMPLEX_t,DOUBLECOMPLEX_t#
    #ftyp=fortran_real,fortran_doublereal,fortran_complex,fortran_doublecomplex,fortran_complex,fortran_doublecomplex#
+   #ret_typ=fortran_doublereal,fortran_doublereal,fortran_complex,fortran_doublecomplex,fortran_complex,fortran_doublecomplex#
    #add=FLOAT_add,DOUBLE_add,CFLOAT_add,CDOUBLE_add,CFLOAT_add,CDOUBLE_add#
    #mul=FLOAT_mul,DOUBLE_mul,CFLOAT_mul,CDOUBLE_mul,CFLOAT_mulc,CDOUBLE_mulc#
    #dot=sdot,ddot,cdotu,zdotu,cdotc,zdotc#
@@ -995,20 +1023,34 @@ static inline void
 @dot@_inner1d(char **args, npy_intp *dimensions, npy_intp *steps)
 {
     const size_t sot = sizeof(@typ@);
-    int dim = (int)dimensions[0];
     INIT_OUTER_LOOP_3
+    int dim = (int)dimensions[0];
     /*
      * use blas if the stride is a multiple of datatype size in the inputs
      * it should be the common case
      */
-    if ((0 == (steps[3] % sot)) &&
-        (0 == (steps[4] % sot))) {
+    if ((0 == (steps[0] % sot)) &&
+        (0 == (steps[1] % sot))) {
         /* use blas */
 
         int is1 = (int)(steps[0]/sot), is2 = (int)(steps[1]/sot);
         BEGIN_OUTER_LOOP_3
             @ftyp@ * ip1 = (@ftyp@*)args[0], *ip2 = (@ftyp@*)args[1];
-            *(@ftyp@*)(args[2]) = BLAS(@dot@)(&dim, ip1, &is1, ip2, &is2);
+            /* 
+             * BLAS function expects data pointer to point to first element for
+             * operand with negative stepping, and then adjusts pointer to point to
+             * last element. However, this ufunc recieves pointer that already
+             * points to last element for negative stepping. Adjust pointer to point
+             * to first element, and let BLAS function adjust pointer to point to
+             * last element.
+             */
+            if (is1 < 0) {
+                ip1 -= dim - 1;
+            }
+            if (is2 < 0) {
+                ip2 -= dim - 1;
+            }
+            @dot@_inner1d_blas((@ret_typ@*)args[2], &dim, ip1, &is1, ip2, &is2);
         END_OUTER_LOOP
     } else {
         /* use standard version */
@@ -3291,10 +3333,39 @@ static void
              /* quadratic form */
 
 /**begin repeat
+   #ftyp=fortran_real,fortran_doublereal#
+   #dot=sdot,ddot#
+   #blas_dot=FNAME(sdot),FNAME(ddot)#
+*/
+
+static inline void
+@ftyp@_@dot@(@ftyp@ *ret_val, int *N, void *X, int *INCX, void *Y, int *INCY)
+{
+    *ret_val = @blas_dot@(N, X, INCX, Y, INCY);
+}
+
+/**end repeat**/
+
+/**begin repeat
+   #ftyp=fortran_complex,fortran_doublecomplex#
+   #dot=cdotu,zdotu#
+   #blas_dot=FNAME(cdotu),FNAME(zdotu)#
+*/
+
+static inline void
+@ftyp@_@dot@(@ftyp@ *ret_val, int *N, void *X, int *INCX, void *Y, int *INCY)
+{
+    @blas_dot@(ret_val, N, X, INCX, Y, INCY);
+}
+
+/**end repeat**/
+
+/**begin repeat
    #TYPE=FLOAT,DOUBLE,CFLOAT,CDOUBLE#
    #typ=float,double,COMPLEX_t,DOUBLECOMPLEX_t#
    #ftyp=fortran_real,fortran_doublereal,fortran_complex,fortran_doublecomplex#
    #zero=s_zero,d_zero,c_zero,z_zero#
+   #dot=sdot,ddot,cdotu,zdotu#
    #blas_dot=FNAME(sdot),FNAME(ddot),FNAME(cdotu),FNAME(zdotu)#
  */
 
@@ -3308,7 +3379,7 @@ static inline @typ@
     fortran_int INCX = X_byte_step/sizeof(@ftyp@);
     fortran_int INCY = Y_byte_step/sizeof(@ftyp@);
 
-    result = @blas_dot@(&N, X, &INCX, Y, &INCY);
+    @ftyp@_@dot@(&result, &N, X, &INCX, &Y, &INCY);
 
     return *(@typ@ *)&result;
 }
@@ -3890,6 +3961,14 @@ static char svd_1_3_types[] = {
     NPY_CDOUBLE, NPY_CDOUBLE, NPY_DOUBLE, NPY_CDOUBLE
 };
 
+static char inner1d_types[] = {
+    NPY_FLOAT, NPY_FLOAT, NPY_DOUBLE,
+    NPY_DOUBLE, NPY_DOUBLE, NPY_DOUBLE,
+    NPY_CFLOAT, NPY_CFLOAT, NPY_CFLOAT,
+    NPY_CDOUBLE, NPY_CDOUBLE, NPY_CDOUBLE
+};
+
+
 typedef struct gufunc_descriptor_struct {
     char *name;
     char *signature;
@@ -3909,7 +3988,7 @@ GUFUNC_DESCRIPTOR_t gufunc_descriptors [] = {
         "    \"(i),(i)->()\" \n",
         4, 2, 1,
         FUNC_ARRAY_NAME(inner1d),
-        equal_3_types
+        inner1d_types
     },
     {
         "dotc1d",

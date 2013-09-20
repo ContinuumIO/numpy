@@ -494,6 +494,15 @@ class TestMultiply4_add(UfuncTestCase, TestCase):
         r = gula.multiply4_add(a, a, a, a, a)
         assert_almost_equal(r, a*a*a*a+a)
 
+class TestInner1d(UfuncTestCase, TestCase):
+    def do(self, a):
+        r = gula.inner1d(a, a)
+        if a.ndim == 1:
+            assert_equal(r, np.einsum('i,i', a, a))
+        elif a.shape[0] == 2:
+            assert_equal(r, np.einsum('ij,ij->i', a, a))
+        else:
+            assert(0)
 
 if __name__ == "__main__":
     print('testing gufuncs_linalg; gufuncs version: %s' % gula._impl.__version__)
