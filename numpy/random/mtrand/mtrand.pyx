@@ -4127,7 +4127,7 @@ cdef class RandomState:
         Examples
         --------
         >>> mean = (1,2)
-        >>> cov = [[1,0],[1,0]]
+        >>> cov = [[1,0],[0,1]]
         >>> x = np.random.multivariate_normal(mean,cov,(3,3))
         >>> x.shape
         (3, 3, 2)
@@ -4165,17 +4165,16 @@ cdef class RandomState:
                    mean.shape[0])
         # Transform matrix of standard normals into matrix where each row
         # contains multivariate normals with the desired covariance.
-        # Compute A such that dot(transpose(A),A) == cov.
-        # Then the matrix products of the rows of x and A has the desired
-        # covariance. Note that sqrt(s)*v where (u,s,v) is the singular value
-        # decomposition of cov is such an A.
+        # Compute L such that dot(L,conj(transpose(L)) == cov.
+        # Then the matrix products of the x and L.T.conjugate() has 
+        # the desired covariance.  Note that L = cholesky(cov) gives the
+        # correct matrix L.
 
-        from numpy.dual import svd
-        # XXX: we really should be doing this by Cholesky decomposition
-        (u,s,v) = svd(cov)
-        x = np.dot(x*np.sqrt(s),v)
+        from numpy.dual import cholesky
+        L = cholesky(cov)
+        x = np.dot(x,L.T.conjugate())
         # The rows of x now have the correct covariance but mean 0. Add
-        # mean to each row. Then each row will have mean mean.
+        # mean to each row. Then each row will have the correct mean.
         np.add(mean,x,x)
         x.shape = tuple(final_shape)
         return x
